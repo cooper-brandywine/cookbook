@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Search</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 1em;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+        }
+
+        input[type="text"] {
+            width: 80%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 12px;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        .recipe-list {
+            text-align: left;
+        }
+
+        .recipe {
+            background-color: #f9f9f9;
+            margin-bottom: 10px;
+            padding: 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .recipe h3 {
+            margin: 0;
+            font-size: 1.2em;
+            text-align: left;
+        }
+
+        .ingredients, .instructions {
+            margin: 10px 0;
+            text-align: left;
+        }
+
+        .ingredients ul {
+            padding-left: 20px;
+            list-style-type: disc;
+        }
+
+        .instructions ol {
+            padding-left: 20px;
+            list-style-type: decimal;
+        }
+
+        .loading {
+            display: none;
+            font-size: 1.2em;
+            color: #555;
+        }
+
+        /* Styles for full-screen recipe details view */
+        .recipe-detail {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width:calc(100vw - 30px);
+            height: 100%;
+            background-color: white;
+            overflow: auto;
+            z-index: 1000;
+            padding: 15px;
+            text-align: left;
+        }
+
+        .back-button {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .back-button:hover {
+            background-color: #0056b3;
+        }
+
+        #detail-instructions {
+            width: 90%;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Recipe Search</h1>
+        <input type="text" id="search-input" placeholder="Enter a recipe name (e.g., Chicken)">
+        <button id="searchIt" onclick="searchRecipe()">Search</button>
+         <script>
+        document.addEventListener("keydown", function(event) {
+            if (event.key === "Enter") {
+                document.getElementById("searchIt").click();
+            }
+        });
+
+        // Action for button click
+        document.getElementById("searchIt").addEventListener("click", function() {
+        });
+    </script>
+        <p class="loading" id="loading">Loading...</p>
+
+        <div class="recipe-list" id="recipe-list"></div>
+    </div>
+
+    <!-- Full-screen recipe details view -->
+    <div class="recipe-detail" id="recipe-detail">
+        <button class="back-button" onclick="closeRecipeDetail()">Back</button>
+        <h2 id="detail-title"></h2>
+        <h4>Ingredients:</h4>
+        <div id="detail-ingredients"></div>
+        <h4>Instructions:</h4>
+        <div id="detail-instructions"></div>
+    </div>
+
+    <script>
+        // Search function to pull data from TheMealDB API
+        function searchRecipe() {
+            const query = document.getElementById('search-input').value;
+            const recipeList = document.getElementById('recipe-list');
+            const loading = document.getElementById('loading');
+            const recipeDetail = document.getElementById('recipe-detail');
+
+            if (!query) {
+                alert('Please enter a recipe name.');
+                return;
+            }
+
+            // Clear previous results and hide detail view
+            recipeList.innerHTML = '';
+            recipeDetail.style.display = 'none';
+            loading.style.display = 'block';
+
+            // API URL
+            const url = `https://www.themealdb.com/api/json/v1/1/search.php?s=${query}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    loading.style.display = 'none';
+
+                    if (data.meals === null) {
+                        recipeList.innerHTML = '<p>No recipes found. Try another search.</p>';
+                        return;
+                    }
+
+                    data.meals.forEach(meal => {
+                        const recipe = document.createElement('div');
+                        recipe.classList.add('recipe');
+                        recipe.innerHTML = `<h3>${meal.strMeal}</h3>`;
+                        recipe.onclick = () => showRecipeDetail(meal);
+                        recipeList.appendChild(recipe);
+                    });
+                })
+                .catch(error => {
+                    loading.style.display = 'none';
+                    console.error('Error fetching the data:', error);
+                    recipeList.innerHTML = '<p>An error occurred while fetching recipes. Please try again later.</p>';
+                });
+        }
+
+        // Function to show full-screen recipe details
+        function showRecipeDetail(meal) {
+            const recipeDetail = document.getElementById('recipe-detail');
+            const detailTitle = document.getElementById('detail-title');
+            const detailIngredients = document.getElementById('detail-ingredients');
+            const detailInstructions = document.getElementById('detail-instructions');
+
+            // Set the title
+            detailTitle.textContent = meal.strMeal;
+
+            // Build the ingredients list
+            let ingredients = '<ul>';
+            for (let i = 1; i <= 20; i++) {
+                const ingredient = meal[`strIngredient${i}`];
+                const measure = meal[`strMeasure${i}`];
+                if (ingredient && ingredient.trim()) {
+                    ingredients += `<li>${ingredient} - ${measure}</li>`;
+                }
+            }
+            ingredients += '</ul>';
+            detailIngredients.innerHTML = ingredients;
+
+            // Split instructions into steps and show as a list
+            const instructions = meal.strInstructions.split('. ').map(step => `<li>${step.trim()}.</li>`).join('');
+            detailInstructions.innerHTML = `<ol>${instructions}</ol>`;
+
+            // Show the recipe detail view
+            recipeDetail.style.display = 'block';
+
+            // Hide recipe list
+            const recipeList = document.getElementById('recipe-list');
+            recipeList.style.display ="none";
+        }
+
+        // Function to close the recipe detail view
+        function closeRecipeDetail() {
+            const recipeDetail = document.getElementById('recipe-detail');
+            recipeDetail.style.display = 'none';
+
+             // Show recipe list
+            const recipeList = document.getElementById('recipe-list');
+            recipeList.style.display ="block";
+        }
+    </script>
+
+</body>
+</html>
